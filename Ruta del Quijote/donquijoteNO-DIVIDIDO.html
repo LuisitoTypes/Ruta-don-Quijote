@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ruta Literaria de don Quijote</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    html, body, #map { height:100%; margin:0; padding:0; }
+    .legend {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 9999 !important;
+      transition: height 0.2s ease;
+    }
+    .legend.minimized {
+      height: 30px;
+      overflow: hidden;
+      width: 160px;
+    }
+    #legend-toggle {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 10000;
+    }
+    .legend-entry { cursor:pointer; margin:4px 0; }
+    .legend-entry:hover { color:#800080; text-decoration:underline; }
+    #info-box {
+      position:absolute; top:10px; left:10px; width:400px; background:white; padding:15px; border:1px solid #888; border-radius:6px; box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:1001; cursor:move;
+      max-height: 90%; overflow-y: auto;
+    }
+    #info-box.minimized { height:30px; overflow:hidden; width:100px; }
+    #info-box h4 { margin:0 0 6px; font-size:36px; }
+    #info-box .close-btn, #info-box .minimize-btn { position:absolute; top:4px; background:none; border:none; font-size:14px; cursor:pointer; }
+    #info-box .close-btn { right:4px; }
+    #info-box .minimize-btn { right:24px; }
+    #info-box p { margin:4px 0; font-size:28px; }
+    #info-box textarea {
+      width: 100%;
+      font-size: 32px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: none;
+      overflow: hidden;
+      height: auto;
+    }
+    #info-tab { position:absolute; top:10px; left:10px; width:100px; height:30px; background:#800080; color:white; text-align:center; line-height:30px; border-radius:4px; cursor:pointer; display:none; z-index:1002; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <div id="legend" class="legend">
+    <button id="legend-toggle">▴</button>
+    <strong>Capítulos</strong>
+    <div id="legend-entries"></div>
+  </div>
+  
+  <div id="info-box">
+    <button class="close-btn" id="close-btn">×</button>
+    <button class="minimize-btn" id="minimize-btn">▴</button>
+    <h4 id="info-title"></h4>
+    <p><strong>Episodio:</strong> <span id="info-episodio"></span></p>
+    <p><strong>Lugar en la novela:</strong> <span id="info-lugar"></span></p>
+    <p><strong>Ubicación actual:</strong> <span id="info-ubicacion"></span></p>
+    <p><strong>Resumen:</strong></p>
+    <div id="info-resumen" style="white-space: pre-wrap; font-size: 32px; margin: 6px 0;"></div>
+    <p><strong>Dato turístico:</strong> <span id="info-dato"></span></p>
+    <p><strong>Comida típica:</strong> <span id="info-comida"></span></p>
+  </div>
+  <div id="info-tab">Info</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const map = L.map('map',{ preferCanvas:true, inertia:false }).setView([39.5,-3.2],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OSM' }).addTo(map);
+
+    const stops = [
+      { loc: "La Mancha (sur/este de Madrid, El Toboso)", coords: [39.4011, -3.0075] },
+      { loc: "Campo de Montiel", coords: [38.7000, -2.8670] },
+      { loc: "Puerto Lápice", coords: [39.32444, -3.48111] },
+      { loc: "Bosque cerca de Villanueva de los Infantes", coords: [38.73403, -3.01157] },
+      { loc: "El Toboso", coords: [39.51806, -2.99806] },
+      { loc: "Camino a Puerto Lápice", coords: [39.32444, -3.48111] },
+      { loc: "Sierra Morena", coords: [38.36667, -3.83333] },
+      { loc: "Prado cerca Sierra Morena", coords: [38.4500, -3.0000] },
+      { loc: "Llanura de La Mancha", coords: [39.0000, -3.0000] },
+      { loc: "Cerca de Argamasilla de Alba", coords: [39.1222, -2.8919] },
+      { loc: "Ciudad Real", coords: [38.9861, -3.9272] }
+    ];
+
+    const chapterInfo = {
+      1: { episodio: 'Que trata de la condición del famoso hidalgo D. Quijote de la Mancha', lugar: 'La Mancha', resumen: 'Don Quijote enloquece con sus cuentos de caballería ya que no puede distinguir lo real y la ficción, se convierte caballero y le dedica sus nuevas aventuras a Dulcinea del Toboso (Aldonzo Lorenzo).', dato: 'Molinos de viento, donde don Quijote se confunde y piensa que son gigantes.', comida: 'Queso manchego, hecho con leche de oveja manchega.' },
+  2: { episodio: 'La primera salida del don Quijote', lugar: 'De camino a La Venta', resumen: 'Llega a la venta que él piensa que es un castillo en Puerto Lápice y ahí coge un descanso donde las mozas le quitan la armadura para darle de comer. Al final el Castrador toca la trompeta y don Quijote piensa que está anunciando su llegada.', dato: 'Plaza de la Constitución, también conocida como Plaza Mayor.', comida: 'Duelos y quebrantos, se prepara con huevo, chorizo, panceta y jamón.' },
+  3: { episodio: 'Como don Quijote se convirtió en caballero', lugar: 'En La Venta', resumen: 'Don Quijote se encierra en la caballeriza y le pide al ventero que lo convierta en caballero. Después de un altercado con los arrieros, el ventero realiza la ceremonia de caballerosidad.', dato: 'Museo Etnográfico, que preserva la historia y tradiciones del pueblo.', comida: 'Cardereta de cordero, guiso de cordero con ajo y vino blanco.' },
+  4: { episodio: 'Lo que le sucede al caballero después de la venta', lugar: 'De camino a La Hacienda', resumen: 'Don Quijote sale en busca de dinero y ropa que todo caballero debe llevar, se encuentra con Andrés y luego con los mercaderes.', dato: 'Castillo de la Estrella, famoso por la batalla de 1369 entre Pedro I de Castilla y Enrique de Trastámara.', comida: 'Migas ruleras, migas de pan duro con ajo, panceta y chorizo.' },
+  5: { episodio: 'Le queman la biblioteca a nuestro caballero', lugar: 'La Hacienda', resumen: 'Don Quijote, tras la quema de su biblioteca, es ayudado por un labrador quien lo lleva a su casa. El caballero confunde su ayuda con la de un marques.', dato: 'Iglesia gótica de San Antonio Abad.', comida: 'Duelo y quebrantos, revueltos de huevos con chorizo y tocino.' },
+  6: { episodio: 'Los sucesos en la librería del don Quijote', lugar: 'La Hacienda', resumen: 'El barbero, el cura y su sobrina revisan la biblioteca de don Quijote mientras él duerme, y queman la mayoría de los libros, salvo algunos que consideran valiosos.', dato: '-----', comida: '-----' },
+  7: { episodio: 'Don Quijote despierta de su siesta', lugar: 'Campo Montiel', resumen: 'Don Quijote se levanta creyendo que sus libros fueron robados por un encantador, el Sabio Frestón, y se enfrenta a su ama y a los demás.', dato: 'Parque natural de las Lagunas de Ruidera.', comida: 'Vino de La Mancha.' },
+  8: { episodio: 'La lucha con los molinos', lugar: 'En los molinos', resumen: 'Don Quijote se enfrenta a los molinos de viento, confundiendo a los molinos con gigantes. Luego, se encuentra con dos frailes y cree que uno de ellos es una princesa.', dato: 'Los molinos de viento.', comida: 'Sopas de ajo.' },
+  9: { episodio: 'El vizcaíno y las aventuras de don Quijote dedicadas a Dulcinea', lugar: 'Camino Real', resumen: 'El autor cuenta cómo encuentra unos escritos árabes de la historia de don Quijote. La historia continúa con la aparición de un vizcaíno.', dato: 'Varias ventas manchegas.', comida: 'Gachas de titos, hechas con harina de almorta, ajo y pedazos de chorizo.' },
+  10: { episodio: 'Argumentos entre don Quijote y Sancho Panza', lugar: 'Chozas de unos cabreros', resumen: 'Sancho Panza le pregunta a don Quijote sobre su dinero y su isla prometida, y el Quijote le cura la oreja con un bálsamo.', dato: '-----', comida: '-----' },
+  11: { episodio: 'De lo que le pasó a don Quijote con unos cabreros', lugar: 'Chozas de unos cabreros', resumen: 'Sancho y don Quijote son bien recibidos por los cabreros, quienes les dan de comer y Sancho le cura la oreja a don Quijote.', dato: '-----', comida: '-----' },
+  12: { episodio: 'Lo que contó un cabrero a don Quijote', lugar: 'Chozas de unos cabreros', resumen: 'Un cabrero les cuenta la trágica historia de Grisóstomo y Marcela, la cual les deja impactados, decidiendo ir al entierro.', dato: '-----', comida: '-----' },
+  13: { episodio: 'El final del cuento de la pastora Marcela', lugar: 'El entierro de Grisóstomo', resumen: 'Don Quijote y los demás van al entierro de Grisóstomo, donde conocen a Ambrosio, quien recita una de las cartas de Grisóstomo a Marcela.', dato: 'Parque Natural de Despeñaperros.', comida: 'Gachas dulces, postre basado en harina y azúcar.' },
+  14: { episodio: 'Los cuentos de enamorados de Grisóstomo', lugar: 'Culminando el entierro de Grisóstomo', resumen: 'Vivaldo lee una canción de Grisóstomo, quien se quejaba de Marcela. Ella llega para defenderse, y don Quijote se dispone a buscarla.', dato: '-----', comida: '-----' },
+  15: { episodio: 'La desgraciada aventura de don Quijote con los yangüeses', lugar: 'Un bosque después de Sierra Morena', resumen: 'Don Quijote y Sancho Panza se encuentran con los yangüeses, se produce una pelea y luego se dirigen a una venta para dormir.', dato: 'Parque Natural de las Sierras de Cardeña y Montoro (Córdoba).', comida: 'Paté de perdiz, perdiz es un ave.' },
+  16: { episodio: 'Los sucesos del don Quijote en la venta que él imaginaba ser un castillo', lugar: 'En La Venta', resumen: 'En la venta, don Quijote piensa que la hija del ventero es una doncella enamorada de él, mientras él y Sancho Panza pelean con los arrieros en la oscuridad.', dato: 'Varias ventas manchegas.', comida: 'Gachas de titos, hechas con harina de almorta, ajo y pedazos de chorizo.' },
+  17: { episodio: 'Los eventos a seguir que le pasaron a don Quijote y Sancho Panza en la venta', lugar: 'La Venta', resumen: 'Don Quijote, tras una noche de peleas, cree que el “castillo” está encantado. Después de una siesta, vomitan y Sancho es regañado por no tener dinero para pagar.', dato: '-----', comida: '-----' },
+  18: { episodio: 'La supuesta guerra que don Quijote vio', lugar: 'Un campo en La Mancha', resumen: 'Don Quijote confunde un campo lleno de ovejas y carneros con una batalla entre dos ejércitos, defendiendo al ejército del rey Pentápolis.', dato: 'Almagro, famoso por su Corral de Comedias.', comida: 'Galianos, sopa fría.' },
+        19: { episodio: 'Encuentro con encamisados', lugar: 'La Mancha', resumen: 'Durante la noche, don Quijote y Sancho se encuentran con una procesión de encapuchados que acompañan un cadáver. Don Quijote cree que son malhechores que llevan a la fuerza a una dama muerta y los ataca. Sancho es apaleado y don Quijote queda herido.', dato: 'Muchos caminos rurales en La Mancha conservan su aspecto tradicional.', comida: 'Gachas manchegas' },
+      20: { episodio: 'Batalla contra el rebaño / De la jamás vista ni oída aventura que con más poco peligro fue acabada de famoso caballero en el mundo, como la acabó el valeroso', lugar: 'La Mancha', resumen: 'Sancho le dice a don Quijote que sus desgracias se deben a un supuesto juramento roto de no comer pan, lo que don Quijote acepta parcialmente como culpa suya. Más tarde, confunden a unos religiosos que transportaban un cadáver, y tras el encuentro, Sancho presenta a su amo como "El Caballero de la Triste Figura" antes de irse juntos a comer alimentos robados.', dato: 'Aún se practica la trashumancia en la región.', comida: 'Queso manchego' },
+      21: { episodio: 'Batalla con los cueros de vino/Que trata de la alta aventura y rica ganancia del yelmo de Mambrino, con otras cosas sucedidas a nuestro invencible caballero', lugar: 'La Mancha', resumen: 'Don Quijote ve una bacía de barbero y cree que es el yelmo mágico de Mambrino. Se la quita al barbero, creyendo que es un trofeo de guerra.', dato: 'Las ventas típicas aún se conservan en algunos pueblos.', comida: 'Duelos y quebrantos' },
+      22: { episodio: 'Liberación de los galeotes/De la libertad que dio don Quijote a muchos desdichados que mal de su grado los llevaban donde no quisieran ir', lugar: 'Camino rural hacia Sierra Morena', resumen: 'Se encuentran con unos galeotes (presos) que van escoltados por la Guardia Real. Don Quijote, creyendo que están injustamente encarcelados, lucha contra los guardias y los libera. Luego, los galeotes lo apedrean y escapan. Sancho le recrimina la locura de sus acciones.', dato: 'Hay rutas que atraviesan zonas históricas como Sierra Morena.', comida: 'Venado estofado' },
+      23: {
+  episodio: 'Huida a Sierra Morena / De lo que le aconteció al famoso don Quijote en Sierra Morena...',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Huyendo de la Santa Hermandad, se internan en la Sierra Morena. Encuentran ropas rotas y conocen a Cardenio, un noble enloquecido por una traición amorosa.',
+  dato: 'Sierra Morena es ideal para practicar senderismo.',
+  comida: 'Gazpacho serrano'
+},
+24: {
+  episodio: 'Encuentro con Cardenio / donde se prosigue la aventura de la Sierra Morena',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Cardenio cuenta su tragedia con Luscinda y don Fernando. Don Quijote interrumpe con una discusión absurda y Cardenio huye enfurecido.',
+  dato: 'En Sierra Morena abundan relatos de amor y locura.',
+  comida: 'Lomo de orza'
+},
+25: {
+  episodio: 'La penitencia de don Quijote / Que trata de las extrañas cosas que en Sierra Morena sucedieron...',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Don Quijote decide hacer penitencia por amor a Dulcinea. Sancho parte rumbo a El Toboso con una carta.',
+  dato: 'La naturaleza salvaje de la sierra inspiró historias de caballeros.',
+  comida: 'Pisto serrano'
+},
+26: {
+  episodio: 'Sancho lleva la carta a Dulcinea / donde se prosiguen las finezas...',
+  lugar: 'El Toboso',
+  resumen: 'Don Quijote queda solo haciendo locuras. El cura y el barbero planean un engaño para rescatarlo.',
+  dato: 'El Toboso es famoso por su relación con Dulcinea.',
+  comida: 'Mojete manchego'
+},
+27: {
+  episodio: 'Encuentro con el cura y el barbero / De cómo salieron con su intención...',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Se internan en la sierra, encuentran a Cardenio, y conocen a Dorotea, una joven disfrazada de pastora.',
+  dato: 'Sierra Morena es ideal para explorar la ruta del Quijote.',
+  comida: 'Olla de pastor'
+},
+28: {
+  episodio: 'Historia de Dorotea / Que trata de la nueva y agradable aventura...',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Dorotea cuenta su historia de traición por don Fernando. El grupo decide ayudarla y a Cardenio.',
+  dato: 'Se organizan rutas que recrean las aventuras en Sierra Morena.',
+  comida: 'Atascaburras'
+},
+29: {
+  episodio: 'Plan para engañar a don Quijote / Que trata de la discreción de la hermosa Dorotea...',
+  lugar: 'Sierra Morena Andalucía',
+  resumen: 'Dorotea se disfraza de princesa y convence a don Quijote de ayudarla contra un gigante imaginario.',
+  dato: 'Muchas fiestas populares recrean episodios del Quijote.',
+  comida: 'Morteruelo'
+},
+30: {
+  episodio: 'Salida de Sierra Morena / Que trata del gracioso artificio y orden...',
+  lugar: 'La Mancha',
+  resumen: 'Sancho duda de la princesa disfrazada, pero el cura lo convence. Don Quijote retoma el viaje con ellos.',
+  dato: 'Hay recorridos turísticos siguiendo la huella del Quijote.',
+  comida: 'Puchero manchego'
+},
+31: {
+  episodio: 'Sancho habla sobre Dulcinea / De los sabrosos razonamientos...',
+  lugar: 'La Mancha',
+  resumen: 'Sancho exige su recompensa. Hablan de Dulcinea, aunque él nunca la ha visto. Don Quijote se mantiene firme en su ideal.',
+  dato: 'El Toboso celebra eventos dedicados a Dulcinea.',
+  comida: 'Alajú'
+},
+32: {
+  episodio: 'Discusión sobre libros de caballería / Que trata de lo que sucedió en la venta...',
+  lugar: 'Puerto Lápice',
+  resumen: 'En una venta, el cura y otros discuten sobre libros de caballería. Don Quijote los defiende apasionadamente.',
+  dato: 'Hay ventas que organizan lecturas de capítulos del Quijote.',
+  comida: 'Caldereta de cordero'
+},
+33: {
+  episodio: 'Historia del Curioso Impertinente (Primera parte) / donde se cuenta la novela...',
+  lugar: 'Puerto Lápice',
+  resumen: 'El cura relata la historia de Anselmo, quien pone a prueba la fidelidad de su esposa Camila con su amigo Lotario.',
+  dato: 'Actividades culturales rememoran este episodio.',
+  comida: 'Rosquillas de anís'
+},
+34: {
+  episodio: 'Historia del Curioso Impertinente (Segunda parte) / donde se prosigue la novela...',
+  lugar: 'Puerto Lápice',
+  resumen: 'Lotario y Camila se enamoran. Anselmo muere de tristeza. La historia critica la desconfianza.',
+  dato: 'Obras de teatro basadas en este relato se presentan en festivales.',
+  comida: 'Mancheguitos'
+},
+35: {
+  episodio: 'Nueva batalla contra los cueros de vino / donde se da fin a la novela...',
+  lugar: 'Puerto Lápice',
+  resumen: 'Don Quijote ataca unos odres de vino creyendo que son gigantes. Causa destrozos en la venta.',
+  dato: 'Las ventas manchegas recrean escenas de don Quijote.',
+  comida: 'Zorongollo'
+},
+36: { episodio: 'Que trata de la brava y descomunal batalla que don Quijote tuvo con unos cueros de vino tinto, con otros raros sucesos que en la venta le sucedieron', lugar: 'Venta del Tío Lucas', resumen: 'Don Quijote, confundiendo unos cueros de vino tinto con gigantes, se enfrenta a ellos en una batalla épica. La venta, donde se encuentran hospedados, se convierte en un escenario de otros sucesos y confusiones.', dato: 'La Venta del Tío Lucas es un lugar representativo de la ruta de don Quijote, y la venta es famosa por ser el sitio de varias de sus aventuras.', comida: 'Pisto manchego' },
+  37: { episodio: 'Que prosigue la historia de la famosa infanta Micomicona, con otras graciosas aventuras', lugar: 'En la venta, donde don Quijote escucha la historia de Micomicona', resumen: 'La historia de la infanta Micomicona sigue desarrollándose. Don Quijote se enfrenta a nuevas desventuras mientras sigue creyendo en la misión de la infanta, sin entender la farsa.', dato: 'Este lugar refleja la influencia de las novelas de caballería en la vida real de los personajes.', comida: 'Tortilla española' },
+  38: { episodio: 'Que trata del curioso discurso que hizo don Quijote de las armas y las letras', lugar: 'En la Venta, donde don Quijote reflexiona sobre la relación entre las armas y las letras', resumen: 'Don Quijote da un discurso filosófico sobre la importancia de las armas y las letras, convencido de la nobleza de su causa.', dato: 'El debate sobre las armas y las letras se mantiene vivo en la literatura y las tradiciones culturales.', comida: 'Gazpacho manchego' },
+  39: { episodio: 'Donde el cautivo cuenta su vida y sucesos', lugar: 'En la venta, mientras el cautivo narra su historia', resumen: 'Un hombre cautivo comparte con los otros personajes su triste historia de cautiverio, generando empatía y reflexiones sobre el destino.', dato: 'La historia del cautivo es una lección de resistencia y supervivencia en la España del Siglo de Oro.', comida: 'Lentejas estofadas' },
+  40: { episodio: 'Donde se prosigue la historia del cautivo', lugar: 'En la misma narrativa del cautivo, continuando sus relatos', resumen: 'La historia del cautivo sigue siendo revelada, aportando más detalles sobre su vida y las circunstancias de su sufrimiento.', dato: 'La historia del cautivo se asocia con lugares históricos de cautiverio en la época.', comida: 'Paella valenciana' },
+  41: { episodio: 'Donde todavía prosigue el cautivo su suceso', lugar: 'Continúa el relato del cautivo', resumen: 'El cautivo sigue narrando eventos de su vida en cautiverio, desarrollando más detalles que enriquecen su historia.', dato: 'Las narrativas de cautiverio son esenciales para entender los viajes y las experiencias de la época.', comida: 'Cordero asado' },
+  42: { episodio: 'Que trata de lo que más sucedió en la venta y de otras muchas cosas dignas de saberse', lugar: 'Venta del Tío Lucas', resumen: 'Se relatan diversos sucesos extraños y cómicos en la venta, continuando las peripecias de don Quijote y sus compañeros.', dato: 'La venta sigue siendo una referencia para las historias de la caballería medieval.', comida: 'Queso manchego' },
+  43: { episodio: 'Donde se cuenta la agradable historia del mozo de mulas, con otros extraños acaecimientos en la venta sucedidos', lugar: 'Venta del Tío Lucas', resumen: 'Un joven mozo de mulas relata una historia entretenida mientras se desarrollan más eventos inusuales en la venta.', dato: 'Las ventas de la época eran lugares de paso para viajeros y testigos de encuentros significativos.', comida: 'Pisto manchego' },
+  44: { episodio: 'Donde se prosiguen los inauditos sucesos de la venta', lugar: 'Venta del Tío Lucas', resumen: 'Se siguen narrando eventos sorprendentes y cómicos en la venta, donde don Quijote continúa viviendo sus aventuras.', dato: 'El lugar es famoso por su relación con los viajes y las historias de la caballería.', comida: 'Tortilla de patatas' },
+  45: { episodio: 'Donde se acaba de averiguar la duda del yelmo de Mambrino y de la albarda, y otras aventuras sucedidas, con toda verdad', lugar: 'En la venta', resumen: 'Don Quijote y sus compañeros resuelven finalmente el misterio del yelmo de Mambrino, descubriendo que no era un yelmo real, sino una simple bacía.', dato: 'La búsqueda del yelmo de Mambrino es un momento clave en la novela, marcando el contraste entre la fantasía de don Quijote y la realidad.', comida: 'Gachas manchegas' },
+  46: { episodio: 'De la notable aventura de los cuadrilleros, y la gran ferocidad de nuestro buen caballero don Quijote', lugar: 'La Venta', resumen: 'Don Quijote enfrenta a un grupo de cuadrilleros, demostrando su ferocidad y valentía, pero creando más caos y malentendidos.', dato: 'Este episodio es representativo de los choques entre la visión idealista de don Quijote y la dura realidad de la época.', comida: 'Sopa castellana' },
+  47: { episodio: 'Del extraño modo con que fue encantado don Quijote de la Mancha, con otros famosos sucesos', lugar: 'La Venta', resumen: 'Don Quijote se ve "encantado" por un encantador y misterioso personaje, mostrando la confusión que caracteriza su visión del mundo.', dato: 'Este episodio es clave para entender la relación de don Quijote con la magia y el encantamiento.', comida: 'Rabo de toro' },
+  48: { episodio: 'Que trata de la brava y descomunal batalla que don Quijote tuvo con unos cueros de vino tinto, con otros raros sucesos que en la venta le sucedieron', lugar: 'De camino a La Hacienda', resumen: 'De nuevo en la venta, don Quijote se enfrenta a unos cueros de vino tinto, creyendo que son gigantes, lo que termina en un desastre cómico.', dato: 'La venta es el sitio de varias de sus más célebres locuras.', comida: 'Pisto manchego' },
+  49: { episodio: 'Donde prosigue el canónigo la materia de los libros de caballerías, con otras cosas dignas de su ingenio', lugar: 'De camino a La Hacienda', resumen: 'El canónigo presenta una crítica profunda sobre los libros de caballerías, cuestionando la validez de las fantasías que don Quijote persigue.', dato: 'El debate sobre los libros de caballerías refleja la crítica a la literatura popular de la época.', comida: 'Caldereta de cordero' },
+  50: { episodio: 'De las discretas altercaciones que don Quijote y el canónigo tuvieron, con otros sucesos', lugar: 'De camino a La Hacienda', resumen: 'Don Quijote y el canónigo tienen un intercambio de ideas sobre el valor de la caballería, que termina en una conversación sin resolución.', dato: 'Este enfrentamiento entre don Quijote y el canónigo refleja las tensiones intelectuales de la época.', comida: 'Estofado de ternera' },
+  51: { episodio: 'Que trata de lo que contó el cabrero a todos los que llevaban a don Quijote', lugar: 'En el camino a La Hacienda', resumen: 'El cabrero relata historias sobre las aventuras de don Quijote y las implicaciones de sus actos, dando una nueva perspectiva de sus hazañas.', dato: 'El relato del cabrero ofrece una visión más amplia de la vida rural y las aventuras de la época.', comida: 'Lomos de cerdo asados' },
+  52: { episodio: 'De la pendencia que don Quijote tuvo con el cabrero, con la rara aventura de los deceplinantes, a quien dio felice fin a costa de su sudor', lugar: 'En el campo, durante una disputa con el cabrero', resumen: 'Don Quijote se enfrenta a una disputa con el cabrero, que termina siendo otra aventura surrealista que termina con un resultado inesperado.', dato: 'La disputa entre don Quijote y el cabrero es un ejemplo más de las confusiones que ocurren a lo largo de la novela.', comida: 'Cazuela de ciervo' }
+    };
+
+    const chapToStop = {
+      1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 4, 7: 1, 8: 0, 9: 5, 10: 5, 11: 5, 12: 5, 13: 6, 14: 6, 15: 7, 16: 2, 17: 2, 18: 8,
+      19: 1, 20: 1, 21: 1, 22: 9, 23: 4, 24: 4, 25: 4, 26: 3, 27: 4, 28: 4, 29: 4, 30: 0, 31: 0, 32: 2,
+      33: 2,
+      34: 2,
+      35: 2, 36: 2,
+      37: 2,
+      38: 2,
+      39: 2,
+      40: 2,
+      41: 2,
+      42: 2,
+      43: 2,
+      44: 2,
+      45: 2,
+      46: 2,
+      47: 2,
+      48: 4,
+      49: 4,
+      50: 4,
+      51: 4,
+      52: 10
+    };
+
+    // GeoJSON for Castilla-La Mancha
+    const geojsonUrl = 'https://raw.githubusercontent.com/simp37/GeoJson_SPAIN/refs/heads/master/Spain/Castilla-La-Mancha.geojson'; // Raw URL
+    fetch(geojsonUrl)
+      .then(response => response.json())
+      .then(data => {
+        const geoJsonLayer = L.geoJSON(data, {
+          style: function() {
+            return { 
+              color: '#800080', // Outline color
+              weight: 2, // Line thickness
+              opacity: 0.5, // Opacity of the boundary line
+            };
+          }
+        }).addTo(map);
+      })
+      .catch(error => console.error('Error loading GeoJSON:', error));
+
+
+
+    const markers = [];
+    stops.forEach((s, i) => {
+      markers[i] = L.marker(s.coords).addTo(map).bindPopup(`<strong>${s.loc}</strong>`);
+    });
+
+    const legendEntries = document.getElementById('legend-entries');
+    for (let ch = 1; ch <= 52; ch++) {
+      const idx = chapToStop[ch], info = chapterInfo[ch];
+      if (!info || !stops[idx]) continue; // safeguard
+      const e = document.createElement('div'); 
+      e.className = 'legend-entry';
+      e.innerText = `Capítulo ${ch}: ${info.lugar}`;
+      e.onclick = () => { map.flyTo(stops[idx].coords, 9, { animate: true }); markers[idx].openPopup(); showInfo(ch); };
+      legendEntries.appendChild(e);
+    }
+
+    const legend = document.getElementById('legend');
+    const legendToggle = document.getElementById('legend-toggle');
+    legendToggle.onclick = () => {
+      legend.classList.toggle('minimized');
+      legendToggle.innerText = legend.classList.contains('minimized') ? '▾' : '▴';
+    };
+
+    const box = document.getElementById('info-box'), tab = document.getElementById('info-tab');
+    function showInfo(ch) {
+      const i = chapterInfo[ch], idx = chapToStop[ch];
+      document.getElementById('info-title').innerText = 'Capítulo ' + ch;
+      document.getElementById('info-episodio').innerText = i.episodio;
+      document.getElementById('info-lugar').innerText = i.lugar;
+      document.getElementById('info-ubicacion').innerText = stops[idx].loc;
+      document.getElementById('info-resumen').innerText = i.resumen;
+      document.getElementById('info-dato').innerText = i.dato;
+      document.getElementById('info-comida').innerText = i.comida;
+      box.style.display = 'block';
+      tab.style.display = 'none';
+    }
+
+    document.getElementById('close-btn').onclick = () => box.style.display = 'none';
+    document.getElementById('minimize-btn').onclick = () => box.classList.toggle('minimized');
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ruta de Don Quijote (Capítulos 1-18)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <style>
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    .legend {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      font-size: 28px;
+      max-height: 500px;
+      overflow-y: auto;
+      line-height: 1.5;
+      z-index: 1000;
+      transition: max-height 0.5s ease, padding 0.5s ease;
+    }
+    .legend-entry {
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+    .legend-entry:hover {
+      text-decoration: underline;
+      color: #800080;
+    }
+    .minimize-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 36px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    .minimized .legend {
+      max-height: 30px;
+      padding: 5px 10px;
+    }
+    .minimized .minimize-btn {
+      transform: rotate(180deg);
+    }
+    .minimized .legend-entry {
+      display: none;
+    }
+    .description-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      max-width: 500px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="legend" id="legend">
+    <button class="minimize-btn" id="minimize-btn">&#9650;</button>
+    <strong>Lugares por capítulo</strong><br>
+  </div>
+  <div class="description-box" id="description-box">
+    <strong>Descripción:</strong><br>
+    <p id="description-content"></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const map = L.map('map').setView([39.5, -3.2], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  
+    const stops = [
+      {
+        name: "La Mancha (sur/este de Madrid, El Toboso)",
+        lat: 39.4011,
+        lng: -3.0075,
+        image: "https://cdn.britannica.com/17/154117-050-3FDC670C/Windmills-Castile-La-Mancha-Spain.jpg"
+      },
+      {
+        name: "Campo de Montiel",
+        lat: 38.7000,
+        lng: -2.8670,
+        image: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Campo_Montiel_CREAL.JPG"
+      },
+      {
+        name: "Puerto Lápice",
+        lat: 39.32444,
+        lng: -3.48111,
+        image: "https://upload.wikimedia.org/wikipedia/commons/e/ed/Plaza_Cosntituci%C3%B3n_Puerto_L%C3%A1pice_3.jpg"
+      },
+      {
+        name: "Bosque cerca de Villanueva de los Infantes",
+        lat: 38.73403,
+        lng: -3.01157,
+        image: "https://sabersabor.es/wp-content/uploads/2021/07/Senderismo-Lagunas-de-Ruidera-7.jpg"
+      },
+      {
+        name: "El Toboso",
+        lat: 39.51806,
+        lng: -2.99806,
+        image: "https://www.spain.info/export/sites/segtur/.content/imagenes/cabeceras-grandes/castilla-mancha/el-toboso-toledo-esculturas-quijote-dulcinea-iglesia-san-antonio-abad-166154180-c-migel-shutterstock.com.jpg"
+      },
+      {
+        name: "Camino a Puerto Lápice",
+        lat: 39.32444,
+        lng: -3.48111,
+        image: "https://www.montesdeasturias.com/QX/QX-01lapice/img/banner.jpg"
+      },
+      {
+        name: "Sierra Morena",
+        lat: 38.36667,
+        lng: -3.83333,
+        image: "https://upload.wikimedia.org/wikipedia/commons/3/38/Valles_t%C3%ADpicos_de_Obejo%2C_Sierra_Morena.JPG"
+      },
+      {
+        name: "Prado cerca Sierra Morena",
+        lat: 38.4500,
+        lng: -3.0000,
+        image: "https://www.rusticassingulares.com/pics/uploads/1053/thumbs/dehesa-en-fuente-obejuna-20.jpg"
+      },
+      {
+        name: "Llanura de La Mancha",
+        lat: 39.0000,
+        lng: -3.0000,
+        image: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Paisaje%2C_provincia_de_Ciudad_Real_%283742104133%29.jpg"
+      },
+      {
+        name: "Cerca de Argamasilla de Alba",
+        lat: 39.1222,
+        lng: -2.8919,
+        image: "https://www.viajesporcastillalamancha.es/images/rutas/grandes/05a581827d0eb493a56b6605aa406899.jpg"
+      },
+      {
+        name: "Ciudad Real",
+        lat: 38.9861,
+        lng: -3.9272,
+        image: "https://upload.wikimedia.org/wikipedia/commons/2/29/Ciudad_Real_-_Plaza_Mayor_04_edited.jpg"
+      }
+    ];
+  
+    const legend = document.getElementById('legend');
+    const descriptionBox = document.getElementById('description-box');
+    const descriptionContent = document.getElementById('description-content');
+  
+    stops.forEach((stop) => {
+      const marker = L.circleMarker([stop.lat, stop.lng], {
+        radius: 8,
+        color: '#800080',
+        fillColor: '#800080',
+        fillOpacity: 1,
+        weight: 2
+      }).addTo(map);
+  
+      marker.on('click', () => {
+        map.flyTo([stop.lat, stop.lng], 10, { animate: true, duration: 1.5 });
+        descriptionContent.innerHTML = `
+          <strong>${stop.name}</strong><br><br>
+          <img src="${stop.image}" alt="${stop.name}" style="width:100%; height:auto;">
+        `;
+      });
+  
+      const entry = document.createElement('div');
+      entry.className = 'legend-entry';
+      entry.innerHTML = `<b>${stop.name}</b>`;
+      entry.addEventListener('click', () => {
+        map.flyTo([stop.lat, stop.lng], 10, { animate: true, duration: 1.5 });
+        descriptionContent.innerHTML = `
+          <strong>${stop.name}</strong><br><br>
+          <img src="${stop.image}" alt="${stop.name}" style="width:100%; height:auto;">
+        `;
+      });
+      legend.appendChild(entry);
+    });
+  
+    const minimizeBtn = document.getElementById('minimize-btn');
+    minimizeBtn.addEventListener('click', () => {
+      legend.classList.toggle('minimized');
+    });
+  </script>
+  
+</body>
+</html>

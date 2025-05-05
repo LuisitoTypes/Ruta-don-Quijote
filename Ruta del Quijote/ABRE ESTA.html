@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruta de Don Quijote</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .map-container {
+      display: none; /* Hide all maps by default */
+      width: 100%;
+      height: 500px; /* Adjust the height as needed */
+      position: relative;
+      border: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    .active {
+      display: block; /* Show the active map */
+    }
+    .nav-buttons {
+      margin-bottom: 20px;
+    }
+    .nav-buttons button {
+      padding: 10px 20px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+    .fullscreen-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+    .fullscreen-button:hover {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Ruta de Don Quijote, Luis Colon, Sofia Rivera, Victoria Cotto</h1>
+
+  <!-- Navigation Buttons -->
+  <div class="nav-buttons">
+    <button onclick="showMap(0)">Castilla-La Mancha</button>
+    <button onclick="showMap(1)">Municipios de Castilla-La Mancha</button>
+    <button onclick="showMap(2)">Imagenes</button>
+  </div>
+
+  <!-- Embedded Maps -->
+  <div class="map-container active" id="map1">
+    <button class="fullscreen-button" onclick="toggleFullscreen('map1')">Pantalla Completa</button>
+    <iframe src="donquijoteNO-DIVIDIDO.html" width="100%" height="500"></iframe>
+  </div>
+  <div class="map-container active" id="map2">
+    <button class="fullscreen-button" onclick="toggleFullscreen('map2')">Pantalla Completa</button>
+    <iframe src="donquijotemunicipios.html" width="100%" height="500"></iframe>
+  </div>
+  <div class="map-container active" id="map3">
+    <button class="fullscreen-button" onclick="toggleFullscreen('map3')">Pantalla Completa</button>
+    <iframe src="donquijoteold.html" width="100%" height="500"></iframe>
+  </div>
+
+  <script>
+    // Function to switch between maps
+    function showMap(index) {
+      // Hide all maps
+      const maps = document.querySelectorAll('.map-container');
+      maps.forEach((map, i) => {
+        if (i === index) {
+          map.classList.add('active');  // Show the selected map
+        } else {
+          map.classList.remove('active');  // Hide the other maps
+        }
+      });
+    }
+
+    // Function to toggle fullscreen mode for the map
+    function toggleFullscreen(mapId) {
+      const map = document.getElementById(mapId);
+      const iframe = map.querySelector('iframe');
+
+      if (!document.fullscreenElement) {
+        map.requestFullscreen().catch(err => console.log(`Error attempting to enter fullscreen: ${err.message}`));
+        iframe.style.height = '100vh'; // Make iframe fill the screen
+      } else {
+        document.exitFullscreen();
+        iframe.style.height = '500px'; // Reset iframe height
+      }
+    }
+  </script>
+
+</body>
+</html>
